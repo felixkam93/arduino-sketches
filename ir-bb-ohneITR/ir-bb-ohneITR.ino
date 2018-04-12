@@ -8,6 +8,8 @@
 #define PIN_DETECT_OUTER 3
 #define PIN_STATUS 13
 #define PIN_STATUS_OUTER 8
+//reduces the rate to read the sensors to every 200 ms
+#define DELAY 200
 
 enum IR_BEAMS {NONE, INNER, OUTER };
 int state_inner;
@@ -16,6 +18,9 @@ int state_inner_old;
 int state_outer_old;
 volatile boolean itr_on_inner;
 volatile boolean itr_on_outer;
+
+unsigned long last_read_inner;
+unsigned long last_read_outer;
 
 int room_occupation = 1;
 
@@ -36,17 +41,17 @@ void setup() {
   pinMode(PIN_LIGHT_ONEP, OUTPUT);
   pinMode(PIN_LIGHT_TWOP, OUTPUT);
 
-
+  last_read_inner = millis();
+  last_read_outer = millis();
   
   digitalWrite(PIN_LIGHT_ONEP, false);
   digitalWrite(PIN_LIGHT_TWOP, false);
  
   irsend.enableIROut(38);
   irsend.mark(0);
-   delay(500);
-
-
-    //not broken beams -> schmitt trigger gives us HIGH
+  delay(500);
+   
+  //not broken beams -> schmitt trigger gives us HIGH
   state_inner = HIGH;
   state_outer = HIGH;
   state_inner_old = HIGH;
@@ -64,10 +69,17 @@ void loop() {
   digitalWrite(PIN_STATUS, digitalRead(PIN_DETECT));
   digitalWrite(PIN_STATUS_OUTER, digitalRead(PIN_DETECT_OUTER));
 
-  state_inner = digitalRead(PIN_DETECT);
+  if(millis() - DELAY > last_read_inner ){
+      state_inner = digitalRead(PIN_DETECT);
+      last_read_inner = millis();
+  }
 
-  state_outer = digitalRead(PIN_DETECT_OUTER);
-  
+
+  if(millis() - DELAY > last_read_outer ){
+    state_outer = digitalRead(PIN_DETECT_OUTER);
+    last_read_outer = millis();
+  }
+
   if(state_inner_old == HIGH && state_inner == LOW){
     Serial.println("Inner switched from HIGH -> LOW, Beam was interrupted");
     last_broken = INNER;
